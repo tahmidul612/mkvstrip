@@ -620,7 +620,7 @@ for count, path in enumerate(processList, start=1):
 	if args.preserve_timestamp is True:
 		logger.info("Preserving timestamp of %s", path.encode("utf-8"))
 		if args.dry_run is False:
-			stat = os.stat(path)
+			stat = os.stat(path.encode("utf-8"))
 			os.utime(target, (stat.st_atime, stat.st_mtime))
 	
 	# Check how much space was saved 
