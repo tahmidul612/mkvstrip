@@ -263,6 +263,7 @@ class Track(object):
 	@language.setter
 	def language(self, value): self._language = self.__makeUnicode(value)
 
+# Remove unwanted characters from tag strings
 def cleanXMLTags(tag):
 	# Clean up Tags
 	tag = tag.title()
