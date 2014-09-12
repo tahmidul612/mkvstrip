@@ -46,6 +46,7 @@ from argparse import ArgumentParser
 
 # Constants
 log = debug = path = dry_run = preserve_timestamp = log_subtitle = keep_commentary = rename_tv = rename_movie = mkvmerge_bin = mkvinfo_bin = mkvpropedit_bin = None
+totalWarnings = totalErrors = totalProcessed = totalRenaming = totalSkipped = 0
 audio_language = subtitle_language = list()
 currentDir = os.path.dirname(os.path.realpath(__file__))
 
@@ -181,7 +182,10 @@ if args.rename_tv is True and args.rename_movie is True:
 # Create class to filter logger to Debug and Info logging
 class InfoFilter(logging.Filter):
 	def filter(self, rec):
-		return rec.levelno in (logging.DEBUG, logging.INFO)
+		logLevel = rec.levelno
+		if logLevel == logging.ERROR: totalErrors += 1
+		elif logLevel == logging.WARNING: totalWarnings += 1
+		return logLevel in (logging.DEBUG, logging.INFO)
 
 # Create logger with name "spam_application"
 logger = logging.getLogger("mkvstrip")
@@ -208,8 +212,7 @@ logger.addHandler(consoleHandlerStderr)
 # Create file handler which logs even debug messages
 if args.log:
 	fileHandler = logging.handlers.TimedRotatingFileHandler(args.log.encode("utf-8"), when="h", interval=12, backupCount=4)
-	#fileHandler.setLevel(logging.DEBUG)
-	fileHandler.setLevel(logging.INFO)
+	fileHandler.setLevel(logging.DEBUG)
 	fileHandler.setFormatter(formatter)
 	logger.addHandler(fileHandler)
 	logger.debug("Log file opened at %s", args.log)
@@ -382,11 +385,6 @@ def checkTitle(element):
 
 ##########################################
 totalSaved = list()
-totalProcessed = 0
-totalRenaming = 0
-totalWarnings = 0
-totalSkipped = 0
-totalErrors = 0
 
 # Creates a sorted list of file to be processed
 if os.path.isfile(args.path) is True:
@@ -420,7 +418,6 @@ for count, path in enumerate(processList, start=1):
 	try: rootElement = mkvToXML(subprocess.check_output([args.mkvinfo_bin.encode("utf-8"), "--output-charset", "utf-8", path.encode("utf-8")]))
 	except subprocess.CalledProcessError:
 		logger.error("Failed to identify %s", path.encode("utf-8"))
-		totalErrors += 1
 		continue
 	
 	# Fetch parent, title of mkv file If renaming of file is requeste 
@@ -445,7 +442,6 @@ for count, path in enumerate(processList, start=1):
 					logger.error("Failed to modify %s", path.encode("utf-8"))
 					logger.error(e.cmd)
 					logger.error(e.output)
-					totalErrors += 1
 				else: totalRenaming += 1
 	
 	# Find video, audio, and subtitle tracks
@@ -479,13 +475,11 @@ for count, path in enumerate(processList, start=1):
 		# Skip files that have invalid track info
 		if wantedAudio is None:
 			logger.error("Invalid track info found for %s... Skipping.", path.encode("utf-8"))
-			totalErrors += 1
 			continue
 		
 		# Skip files that don't have the specified language audio tracks
 		elif len(wantedAudio) == 0:
 			logger.error("No audio tracks matching specified language(s) for %s... Skipping.", path.encode("utf-8"))
-			totalErrors += 1
 			continue
 		
 		# Audio Tracks found, Log each track
@@ -507,7 +501,6 @@ for count, path in enumerate(processList, start=1):
 	else:
 		# No audio track(s) found, Skipping
 		logger.error("No audio track(s) found for %s... Skipping.", path.encode("utf-8"))
-		totalErrors += 1
 		continue
 	
 	# Check if any subtitle tracks are available, if not found then log warning
@@ -531,12 +524,10 @@ for count, path in enumerate(processList, start=1):
 		# Skip files that have invalid track info
 		if wantedSubtitle is None:
 			if args.log_subtitle: logger.warning("Invalid track info found for %s", path.encode("utf-8"))
-			totalWarnings += 1
 		
 		# Skip files that don't have the specified language subtitle tracks
 		elif len(wantedSubtitle) == 0:
 			if args.log_subtitle: logger.warning("No subtitle tracks matching specified language(s) for %s", path.encode("utf-8"))
-			totalWarnings += 1
 		
 		# Subtitle Tracks found, Log each track
 		else:
@@ -559,7 +550,6 @@ for count, path in enumerate(processList, start=1):
 		logger.warning("No subtitle track(s) found for %s.", path.encode("utf-8"))
 		unWantedSubtitle = list()
 		wantedSubtitle = list()
-		totalWarnings += 1
 	
 	# Skip files that don't need processing
 	if remuxRequired is False:
@@ -616,7 +606,6 @@ for count, path in enumerate(processList, start=1):
 			logger.error("Remux of %s failed!", path.encode("utf-8"))
 			logger.error(e.cmd)
 			logger.error(e.output)
-			totalErrors += 1
 			continue
 	
 	# Preserve timestamp
@@ -641,7 +630,6 @@ for count, path in enumerate(processList, start=1):
 		except:
 			os.unlink(target)
 			logger.error("Renaming of %s to %s failed!", target, path)
-			totalErrors += 1
 		else:
 			# Rename temp file to original path
 			os.rename(target, path)
