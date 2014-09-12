@@ -438,7 +438,8 @@ for count, path in enumerate(processList, start=1):
 		if title != name:
 			modifyCMD = [args.mkvpropedit_bin.encode("utf-8"), path.encode("utf-8"), "--command-line-charset", "utf-8", "--set", "title=%s" % name.encode("utf-8")]
 			logger.info("Renaming title of mkv to %s" % name.encode("utf-8"))
-			if args.dry_run is False:
+			if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+			else:
 				try: subprocess.check_output(modifyCMD)
 				except subprocess.CalledProcessError as e:
 					logger.error("Failed to modify %s", path.encode("utf-8"))
@@ -562,7 +563,7 @@ for count, path in enumerate(processList, start=1):
 	
 	# Skip files that don't need processing
 	if remuxRequired is False:
-		logger.info("Nothing to do for %s", path.encode("utf-8"))
+		logger.info("No changes required for %s", path.encode("utf-8"))
 		totalSkipped += 1
 		continue
 	
@@ -586,7 +587,8 @@ for count, path in enumerate(processList, start=1):
 	
 	# Attempt to process file
 	logger.info("Processing %s...", path.encode("utf-8"))
-	if args.dry_run is False:
+	if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+	else:
 		try:
 			# Call subprocess command to remux file
 			process = subprocess.Popen(buildCMD, stdout=subprocess.PIPE, universal_newlines=True)
@@ -620,7 +622,8 @@ for count, path in enumerate(processList, start=1):
 	# Preserve timestamp
 	if args.preserve_timestamp is True:
 		logger.info("Preserving timestamp of %s", path.encode("utf-8"))
-		if args.dry_run is False:
+		if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+		else:
 			stat = os.stat(path.encode("utf-8"))
 			os.utime(target, (stat.st_atime, stat.st_mtime))
 	
