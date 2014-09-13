@@ -183,8 +183,12 @@ if args.rename_tv is True and args.rename_movie is True:
 class InfoFilter(logging.Filter):
 	def filter(self, rec):
 		logLevel = rec.levelno
-		if logLevel == logging.ERROR: totalErrors += 1
-		elif logLevel == logging.WARNING: totalWarnings += 1
+		if logLevel == logging.ERROR:
+			global totalErrors
+			totalErrors += 1
+		elif logLevel == logging.WARNING:
+			global totalWarnings
+			totalWarnings += 1
 		return logLevel in (logging.DEBUG, logging.INFO)
 
 # Create logger with name "spam_application"
