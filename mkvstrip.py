@@ -39,145 +39,137 @@ For help with the command line parameters use the -h parameter.
 """
 
 # Required Imports
-import os, re, sys, subprocess, collections, logging, logging.handlers, time
+import os, re, sys, subprocess, ConfigParser, collections, logging, logging.handlers, time, locale, platform
 import xml.etree.ElementTree as ElementTree
 from cStringIO import StringIO
 from argparse import ArgumentParser
 
 # Constants
-log = debug = path = dry_run = preserve_timestamp = log_subtitle = keep_commentary = rename_tv = rename_movie = mkvmerge_bin = mkvinfo_bin = mkvpropedit_bin = None
 totalWarnings = totalErrors = totalProcessed = totalRenaming = totalSkipped = 0
 audio_language = subtitle_language = list()
 currentDir = os.path.dirname(os.path.realpath(__file__))
 
-##########################################
-
-# Log errors to file. Log file will be in the same directory as mkvstrip.py
-# Note that the location always uses the / versus the \ for location despite what the OS uses (*cough* Windows).
-log = os.path.join(currentDir, "mkvstrip.log")
-
-# Log dubug messages to console output
-debug = False
-
-# The below parameter lets mkvstrip go through the motions of what it would do but
-# won't actually change any files. This allows you to review the logs and ensure that
-# everything in the log is what you'd actually like to do before actually doing it
-dry_run = False
-
-# preserve_timestamp keeps the timestamps of the old file if set.
-# This prevents you from having an entire library that has a date/time stamp of today
-preserve_timestamp = True
-
-# Log files that have no subtitles in the languages chosen
-# This is to allow you to be informed of videos that are missing your required subtitles so you can take action as necessary
-log_subtitle = True
-
-# Attempts to remove commentary tracks if set to false
-# Recommended to set to False as commentary tracks can take up a bit of space
-keep_commentary = False
-
-# Rewrite the title field of mkv files to include the immediate parent directory
-# If set to true it will rename the title field of the MKV to be in the format of "(parent directory) - (name of video file without .mkv extension)"
-# This setting is mutually exclusive of rename_movie
-rename_tv = False
-
-# Rewrite the title field of mkv files to include the video file name without the .mkv extension
-# This setting is mutually exclusive of rename_tv
-rename_movie = True
-
-# List of audio languages to retain.  Default is English (eng) and undetermined (und)
-# "und" (undetermined) is always recommended in case audio tracks aren't identified.
-audio_language = ["eng", "und"]
-
-# List of subtitle languages to retain. Default is English (eng) and undetermined (und)
-# "und" (undetermined) is always recommended in case subtitle tracks aren't identified.
-subtitle_language = ["eng", "und"]
-
-# Location for MKVToolNix executable binarys
-# Note that the location always uses the / versus the \ for location despite what the OS uses (*cough* Windows).
-mkvpropedit_bin = "/usr/local/bin/mkvpropedit"
-mkvmerge_bin = "/usr/local/bin/mkvmerge"
-mkvinfo_bin = "/usr/local/bin/mkvinfo"
-
-# Directory or file to process
-# Note that the location always uses the / versus the \ for location despite what the OS uses (*cough* Windows).
-#path = "/mnt/vault/media/movies"
+# Fetch System Encoding
+systemEncoding = locale.getpreferredencoding()
+if "ascii" in systemEncoding.lower(): systemEncoding = "UTF-8"
 
 ##########################################
+
+# Custom ConfigParser
+class CustomParser(ConfigParser.ConfigParser):
+	def safeget(self, section, option, default=None):
+		try: return ConfigParser.ConfigParser.get(self, section, option)
+		except: return default
+	
+	def safegetboolean(self, section, option, default=False):
+		try: return ConfigParser.ConfigParser.getboolean(self, section, option)
+		except: return default
+	
+	def safegetlist(self, section, option, default=[]):
+		try: return [item.strip() for item in ConfigParser.ConfigParser.get(self, section, option).split(",")]
+		except: return default
+	
+	def removeUnset(self):
+		# Remove unset options
+		for section in self.sections():
+			for option, value in self.items(section):
+				if value == "": self.remove_option(section, option)
+
+# Fetch config defaults
+config = CustomParser()
+config.read(os.path.join(currentDir, "defaults.ini"))
+osDefaults = os.path.join(currentDir, "defaults-%s.ini" % platform.system().lower())
+if os.path.exists(osDefaults): config.read(osDefaults)
+config.removeUnset()
 
 # Create Parser to parse the required arguments
 parser = ArgumentParser(description="Strips unnecessary tracks from MKV files.")
 
 # Add arguments for log setting
-group = parser.add_mutually_exclusive_group(required=log==None)
-group.add_argument("-l", "--log", default=log, const=log or os.path.join(currentDir, "mkvstrip.log"), nargs="?", action="store", help="Log to file in addition to STDOUT and STDERR.", dest="log")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "log"))
+group.add_argument("-l", "--log", default=config.safeget("global", "log"), const=config.safeget("global", "log", os.path.join(currentDir, "mkvstrip.log")), nargs="?", action="store", help="Log to file in addition to STDOUT and STDERR.", dest="log")
 group.add_argument("--no-log", action="store_false", dest="log")
 
 # Add arguments for debug setting
-group = parser.add_mutually_exclusive_group(required=debug==None)
-group.add_argument("-g", "--debug", default=debug, action="store_true", help="Enable debug logging", dest="debug")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "debug"))
+group.add_argument("-g", "--debug", default=config.safegetboolean("global", "debug", False), action="store_true", help="Enable debug logging", dest="debug")
 group.add_argument("--no-debug", action="store_false", dest="debug")
 
-# Add arguments for scan folder/file
-group = parser.add_mutually_exclusive_group(required=path==None)
-group.add_argument("-d", "--dir", default=path, action="store", help="Location of folder to scan", dest="path")
-group.add_argument("-f", "--file", action="store", help="Location of file to scan", dest="path")
-
 # Add arguments to enable dry run
-group = parser.add_mutually_exclusive_group(required=dry_run==None)
-group.add_argument("-y", "--dry-run", default=dry_run, action="store_true", help="Enable mkvmerge dry run for testing", dest="dry_run")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "dry_run"))
+group.add_argument("-y", "--dry-run", default=config.safegetboolean("global", "dry_run", False), action="store_true", help="Enable mkvmerge dry run for testing", dest="dry_run")
 group.add_argument("--no-dry-run", action="store_false", dest="dry_run")
 
 # Add arguments to enable or disable preserving of timestamp
-group = parser.add_mutually_exclusive_group(required=preserve_timestamp==None)
-group.add_argument("-p", "--preserve-timestamp", default=preserve_timestamp, action="store_true", help="Preserve timestamp of mkv file", dest="preserve_timestamp")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "preserve_timestamp"))
+group.add_argument("-p", "--preserve-timestamp", default=config.safegetboolean("global", "preserve_timestamp", True), action="store_true", help="Preserve timestamp of mkv file", dest="preserve_timestamp")
 group.add_argument("--no-preserve-timestamp", action="store_false", dest="preserve_timestamp")
 
 # Add arguments to enable or disable no subtitle logging
-group = parser.add_mutually_exclusive_group(required=log_subtitle==None)
-group.add_argument("-m", "--log-subtitle", default=log_subtitle, action="store_true", help="Log if file doesn\'t have a subtitle track.", dest="log_subtitle")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "log_subtitle"))
+group.add_argument("-m", "--log-subtitle", default=config.safegetboolean("global", "log_subtitle", False), action="store_true", help="Log if file doesn\'t have a subtitle track.", dest="log_subtitle")
 group.add_argument("--no-log-subtitle", action="store_false", dest="log_subtitle")
 
 # Add arguments to enable or disable retaining of commentary tracks
-group = parser.add_mutually_exclusive_group(required=keep_commentary==None)
-group.add_argument("-c", "--keep-commentary", default=keep_commentary, action="store_true", help="Keep commentary audio and subtitle tracks.", dest="keep_commentary")
-group.add_argument("--no-commentary", action="store_false", dest="keep_commentary")
-
-# Add arguments to enable renmae tv or rename movie
-renaming = parser.add_argument_group("renaming")
-group = renaming.add_mutually_exclusive_group(required=rename_tv==None and rename_movie==None)
-group.add_argument("-r", "--rename-tv", default=rename_tv, action="store_true", help="Rename video track names to include immediate parent directory.", dest="rename_tv")
-group.add_argument("-e", "--rename-movie", default=rename_movie, action="store_true", help="Use the filename to rename the video track names.", dest="rename_movie")
-renaming.add_argument("--no-rename-tv", action="store_false", dest="rename_tv")
-renaming.add_argument("--no-rename-movie", action="store_false", dest="rename_movie")
+group = parser.add_mutually_exclusive_group(required=not config.has_option("global", "remove_commentary"))
+group.add_argument("-c", "--remove-commentary", default=config.safegetboolean("global", "remove_commentary", True), action="store_true", help="Keep commentary audio and subtitle tracks.", dest="remove_commentary")
+group.add_argument("--keep-commentary", action="store_false", dest="remove_commentary")
 
 # Add arguments for lanauage
 language = parser.add_argument_group("language")
-language.add_argument("-a", "--audio-language", default=audio_language, action="append", required=audio_language==[], help="Audio languages to retain. May be specified multiple times.", dest="audio_language")
-language.add_argument("-s", "--subtitle-language", default=subtitle_language, action="append", help="Subtitle languages to retain. May be specified multiple times.", dest="subtitle_language")
+language.add_argument("-a", "--audio-language", default=config.safegetlist("global", "audio_language", ["eng", "und"]), action="append", required=not config.has_option("global", "audio_language"), help="Audio languages to retain. May be specified multiple times.", dest="audio_language")
+language.add_argument("-s", "--subtitle-language", default=config.safegetlist("global", "subtitle_language", ["eng", "und"]), action="append", help="Subtitle languages to retain. May be specified multiple times.", dest="subtitle_language")
 
 # Add arguments for binary locations
 binarys = parser.add_argument_group("binarys")
-binarys.add_argument("-b", "--mkvmerge-bin", default=mkvmerge_bin, action="store", help="Path to mkvmerge binary.", dest="mkvmerge_bin")
-binarys.add_argument("-i", "--mkvinfo-bin", default=mkvinfo_bin, action="store", help="Path to mkvinfo binary.", dest="mkvinfo_bin")
-binarys.add_argument("-t", "--mkvpropedit-bin", default=mkvpropedit_bin, action="store", help="Path to mkvpropedit binary.", dest="mkvpropedit_bin")
+binarys.add_argument("-b", "--mkvmerge-bin", default=config.safeget("global", "mkvmerge"), action="store", required=not config.has_option("global", "mkvmerge"), help="Path to mkvmerge binary.", dest="mkvmerge_bin")
+binarys.add_argument("-i", "--mkvinfo-bin", default=config.safeget("global", "mkvinfo"), action="store", required=not config.has_option("global", "mkvinfo"), help="Path to mkvinfo binary.", dest="mkvinfo_bin")
+binarys.add_argument("-t", "--mkvpropedit-bin", default=config.safeget("global", "mkvpropedit"), action="store", required=not config.has_option("global", "mkvpropedit"), help="Path to mkvpropedit binary.", dest="mkvpropedit_bin")
+
+# Fetch Directorys or files to scan
+pathList = []
+for section in (item for item in config.sections() if not item == "global"):
+	if not config.has_option(section, "path"): continue
+	else:
+		# Fetch Rename Value if set
+		if config.has_option(section, "rename_movie") and config.safegetboolean(section, "rename_movie") is True: pathList.append((config.safeget(section, "path").decode(systemEncoding), u"movie"))
+		elif config.has_option(section, "rename_tv") and config.safegetboolean(section, "rename_tv") is True: pathList.append((config.safeget(section, "path").decode(systemEncoding), u"tv"))
+		else: pathList.append((config.safeget(section, "path").decode(systemEncoding), False))
+
+# Add arguments for scan folder/file
+group = parser.add_mutually_exclusive_group(required=pathList==[])
+group.add_argument("-d", "--dir", default=None, action="store", help="Location of folder to scan", dest="path")
+group.add_argument("-f", "--file", default=None, action="store", help="Location of file to scan", dest="path")
+
+# Add arguments to enable rename tv or rename movie
+renaming = parser.add_argument_group("renaming")
+group = renaming.add_mutually_exclusive_group(required=pathList==[])
+group.add_argument("-r", "--rename-tv", default=None, action="store_true", help="Rename video track names to include immediate parent directory.", dest="rename_tv")
+group.add_argument("-e", "--rename-movie", default=None, action="store_true", help="Use the filename to rename the video track names.", dest="rename_movie")
+renaming.add_argument("--no-rename-tv", action="store_false", dest="rename_tv")
+renaming.add_argument("--no-rename-movie", action="store_false", dest="rename_movie")
 
 # Parse All Args
 args = parser.parse_args()
 
+# Make sure that both args.rename_tv and args.rename_movie are not true
+if args.path is not None:
+	if args.rename_tv is True and args.rename_movie is True:
+		raise RuntimeError("Setting rename_tv = True and rename_movie = True at the same time is not allowed.")
+	elif args.rename_movie is True:
+		pathList = [(args.path.decode(systemEncoding), u"movie")]
+	elif args.rename_tv is True:
+		pathList = [(args.path.decode(systemEncoding), u"tv")]
+	else:
+		pathList = [(args.path.decode(systemEncoding), False)]
+
 # Convert path to normalized absolutized version
-systemEncoding = sys.stdin.encoding
-args.log = os.path.abspath(args.log).decode(systemEncoding)
-args.path = os.path.abspath(args.path).decode(systemEncoding)
-args.mkvinfo_bin = os.path.abspath(args.mkvinfo_bin).decode(systemEncoding)
-args.mkvmerge_bin = os.path.abspath(args.mkvmerge_bin).decode(systemEncoding)
-args.mkvpropedit_bin = os.path.abspath(args.mkvpropedit_bin).decode(systemEncoding)
+args.log = args.log.decode(systemEncoding)
+args.mkvinfo_bin = args.mkvinfo_bin.decode(systemEncoding)
+args.mkvmerge_bin = args.mkvmerge_bin.decode(systemEncoding)
+args.mkvpropedit_bin = args.mkvpropedit_bin.decode(systemEncoding)
 
 ##########################################
-
-# Make sure that both args.rename_tv and args.rename_movie are not true
-if args.rename_tv is True and args.rename_movie is True:
-	raise RuntimeError("Setting rename_tv = True and rename_movie = True at the same time is not allowed.")
 
 # Create class to filter logger to Debug and Info logging
 class InfoFilter(logging.Filter):
@@ -215,19 +207,28 @@ logger.addHandler(consoleHandlerStderr)
 
 # Create file handler which logs even debug messages
 if args.log:
-	fileHandler = logging.handlers.TimedRotatingFileHandler(args.log.encode("utf-8"), when="h", interval=12, backupCount=4)
+	if os.path.exists(args.log.encode(systemEncoding)):
+		fileHandler = logging.handlers.TimedRotatingFileHandler(args.log.encode(systemEncoding), when="h", interval=1, backupCount=4)
+		fileHandler.doRollover()
+	else: fileHandler = logging.handlers.TimedRotatingFileHandler(args.log.encode(systemEncoding), when="h", interval=1, backupCount=4)
 	fileHandler.setLevel(logging.DEBUG)
 	fileHandler.setFormatter(formatter)
 	logger.addHandler(fileHandler)
-	logger.debug("Log file opened at %s", args.log)
+	logger.debug("Log file opened at %s", args.log.encode(systemEncoding))
 
 # Loop each argument and log to file
 logger.info("=========")
 logger.info("Running %s with configuration:", os.path.basename(__file__))
 logger.info("=========")
+logger.info("SYSTEM_ENCODING = %s" % systemEncoding)
 for key, value in vars(args).iteritems():
-	if isinstance(value, unicode): logger.info("%s = %s", key.upper(), value.encode("utf-8"))
+	if key == "path": continue
+	if isinstance(value, unicode): logger.info("%s = %s", key.upper(), value.encode(systemEncoding))
 	else: logger.info("%s = %s", key.upper(), value)
+
+for path, rename in pathList:
+	logger.info("Path = %s", path)
+	logger.info("Rename = %s", rename)
 
 ##########################################
 
@@ -240,11 +241,11 @@ class Track(object):
 		self._language = u"und"
 	
 	def __str__(self):
-		return "Track #%s (%s): %s - %s" % (self._id.encode("utf-8"), self._language.encode("utf-8"), self._codec.encode("utf-8"), self._name.encode("utf-8") if self._name else "")
+		return (u"Track #%s (%s): %s - %s" % (self._id, self._language, self._codec, self._name if self._name else "")).encode("UTF-8")
 	
 	def __makeUnicode(self, data):
 		if data is None or isinstance(data, unicode): return data
-		else: return data.decode("utf-8")
+		else: return data.decode("UTF-8")
 	
 	@property
 	def id(self): return self._id
@@ -385,47 +386,60 @@ def checkTitle(element):
 	except: return None
 	else:
 		if title is None or isinstance(title, unicode): return title
-		else: return title.decode("utf-8")
+		else: return title.decode("UTF-8")
 
 ##########################################
+logger.info("=========")
+logger.info("Searching for MKV files to process...")
 totalSaved = list()
+processList = list()
 
 # Creates a sorted list of file to be processed
-if os.path.isfile(args.path) is True:
-	processList = [args.path]
-	totalMKVs = 1
-else:
-	# Walk through the directory and sort by filename
-	unsortedList = list()
-	for dirpath, dirnames, filenames in os.walk(args.path):
-		mkvFilenames = [filename for filename in filenames if filename.lower().endswith(u".mkv")]
-		mkvFilenames.sort()
-		unsortedList.append((dirpath, mkvFilenames))
+for path, rename in pathList:
+	if os.path.isfile(path.encode(systemEncoding)): processList.append((path, rename))
+	else:
+		# Walk through the directory and sort by filename
+		unsortedList = list()
+		for dirpath, dirnames, filenames in os.walk(path.encode(systemEncoding)):
+			if isinstance(dirpath, str): dirpath = dirpath.decode(systemEncoding)
+			mkvFilenames = []
+			for filename in filenames:
+				if isinstance(filename, str): filename = filename.decode(systemEncoding)
+				if filename.lower().endswith(u".mkv"): mkvFilenames.append(filename)
+			
+			mkvFilenames.sort()
+			unsortedList.append((dirpath, mkvFilenames))
+		
+		# Now sort by Directory and append to processList
+		unsortedList.sort(key=lambda dirTuple: dirTuple[0])
+		for dirpath, filenames in unsortedList:
+			for filename in filenames:
+				processList.append((os.path.join(dirpath, filename), rename))
 	
-	# Now sort by Directory and append to processList
-	processList = list()
-	unsortedList.sort(key=lambda dirTuple: dirTuple[0])
-	for dirpath, filenames in unsortedList:
-		for filename in filenames:
-			processList.append(os.path.abspath(os.path.join(dirpath, filename)))
-	
-	# Check for the ammount of files to process
-	totalMKVs = len(processList)
+# Check for the ammount of files to process
+totalMKVs = len(processList)
 
 # Loop each file and remux if needed
-for count, path in enumerate(processList, start=1):
+for count, pathData in enumerate(processList, start=1):
+	# Split pathData into path and rename
+	path, rename = pathData
+	
 	# Attempt to identify file
 	logger.info("=========")
-	logger.info("Identifying video (%s/%s) %s", count, totalMKVs, path.encode("utf-8"))
-	
-	# Call mkvinfo and convert output to xml
-	try: rootElement = mkvToXML(subprocess.check_output([args.mkvinfo_bin.encode("utf-8"), "--output-charset", "utf-8", path.encode("utf-8")]))
-	except subprocess.CalledProcessError:
-		logger.error("Failed to identify %s", path.encode("utf-8"))
+	logger.info("Identifying video (%s/%s) %s", count, totalMKVs, path.encode(systemEncoding))
+	command = [args.mkvinfo_bin.encode(systemEncoding), "--command-line-charset", systemEncoding, "--output-charset", "UTF-8", path.encode(systemEncoding)]
+	try: rootElement = mkvToXML(subprocess.check_output(command))
+	except subprocess.CalledProcessError as e:
+		logger.error("Failed to identify %s", path.encode(systemEncoding))
+		logger.debug(e.cmd)
+		logger.debug(e.output)
+		continue
+	except:
+		logger.error("Failed to identify %s", path.encode(systemEncoding))
 		continue
 	
 	# Fetch parent, title of mkv file If renaming of file is requeste 
-	if args.rename_tv is True or args.rename_movie is True:
+	if rename:
 		# Split out the separated part of the path
 		tail = os.path.splitdrive(path)[1]
 		parent = os.path.split(os.path.dirname(tail))[-1]
@@ -433,20 +447,23 @@ for count, path in enumerate(processList, start=1):
 		title = checkTitle(rootElement)
 		
 		# Change title name to add the parent directory for tv renaming
-		if args.rename_tv is True: name = u"%s: %s" % (parent, name)
+		if rename == u"tv": name = u"%s: %s" % (parent, name)
 		
 		# Rewrite the title field of mkv file to include the modifyed title if needed
 		if title != name:
-			modifyCMD = [args.mkvpropedit_bin.encode("utf-8"), path.encode("utf-8"), "--command-line-charset", "utf-8", "--set", "title=%s" % name.encode("utf-8")]
-			logger.info("Renaming title of mkv to %s" % name.encode("utf-8"))
-			if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+			modifyCMD = [args.mkvpropedit_bin.encode(systemEncoding), path.encode(systemEncoding), "--command-line-charset", systemEncoding, "--set", "title=%s" % name.encode(systemEncoding)]
+			logger.info("Renaming title of mkv to %s" % name.encode(systemEncoding))
+			if args.dry_run is True: logger.info("Renaming are not being applied because you are in dry run mode")
 			else:
 				try: subprocess.check_output(modifyCMD)
 				except subprocess.CalledProcessError as e:
-					logger.error("Failed to modify %s", path.encode("utf-8"))
-					logger.error(e.cmd)
-					logger.error(e.output)
-				else: totalRenaming += 1
+					logger.error("Failed to modify %s", path.encode(systemEncoding))
+					logger.debug(e.cmd)
+					logger.debug(e.output)
+				except:
+					logger.error("Failed to modify %s", path.encode(systemEncoding))
+				else:
+					totalRenaming += 1
 	
 	# Find video, audio, and subtitle tracks
 	trackData = checkTracks(rootElement)
@@ -472,18 +489,18 @@ for count, path in enumerate(processList, start=1):
 				wantedAudio = None
 				break
 			
-			elif track.language.encode("ascii") in args.audio_language and (args.keep_commentary is True or not u"commentary" in unicode(track.name).lower()):
+			elif track.language.encode("ascii") in args.audio_language and (args.remove_commentary is False or not u"commentary" in unicode(track.name).lower()):
 				# Append track to audio tracks list
 				wantedAudio.append(track)
 		
 		# Skip files that have invalid track info
 		if wantedAudio is None:
-			logger.error("Invalid track info found for %s... Skipping.", path.encode("utf-8"))
+			logger.error("Invalid track info found for %s... Skipping.", path.encode(systemEncoding))
 			continue
 		
 		# Skip files that don't have the specified language audio tracks
 		elif len(wantedAudio) == 0:
-			logger.error("No audio tracks matching specified language(s) for %s... Skipping.", path.encode("utf-8"))
+			logger.error("No audio tracks matching specified language(s) for %s... Skipping.", path.encode(systemEncoding))
 			continue
 		
 		# Audio Tracks found, Log each track
@@ -504,7 +521,7 @@ for count, path in enumerate(processList, start=1):
 	
 	else:
 		# No audio track(s) found, Skipping
-		logger.error("No audio track(s) found for %s... Skipping.", path.encode("utf-8"))
+		logger.error("No audio track(s) found for %s... Skipping.", path.encode(systemEncoding))
 		continue
 	
 	# Check if any subtitle tracks are available, if not found then log warning
@@ -521,17 +538,17 @@ for count, path in enumerate(processList, start=1):
 				wantedSubtitle = None
 				break
 			
-			elif track.language.encode("ascii") in args.subtitle_language and (args.keep_commentary is True or not u"commentary" in unicode(track.name).lower()):
+			elif track.language.encode("ascii") in args.subtitle_language and (args.remove_commentary is False or not u"commentary" in unicode(track.name).lower()):
 				# Append track to subtitle tracks list
 				wantedSubtitle.append(track)
 		
 		# Skip files that have invalid track info
 		if wantedSubtitle is None:
-			if args.log_subtitle: logger.warning("Invalid track info found for %s", path.encode("utf-8"))
+			if args.log_subtitle: logger.warning("Invalid track info found for %s", path.encode(systemEncoding))
 		
 		# Skip files that don't have the specified language subtitle tracks
 		elif len(wantedSubtitle) == 0:
-			if args.log_subtitle: logger.warning("No subtitle tracks matching specified language(s) for %s", path.encode("utf-8"))
+			if args.log_subtitle: logger.warning("No subtitle tracks matching specified language(s) for %s", path.encode(systemEncoding))
 		
 		# Subtitle Tracks found, Log each track
 		else:
@@ -551,20 +568,20 @@ for count, path in enumerate(processList, start=1):
 	
 	elif args.log_subtitle:
 		# No subtitle track(s) found, Skipping
-		logger.warning("No subtitle track(s) found for %s.", path.encode("utf-8"))
+		logger.warning("No subtitle track(s) found for %s.", path.encode(systemEncoding))
 		unWantedSubtitle = list()
 		wantedSubtitle = list()
 	
 	# Skip files that don't need processing
 	if remuxRequired is False:
-		logger.info("No changes required for %s", path.encode("utf-8"))
+		logger.info("No changes required for %s", path.encode(systemEncoding))
 		totalSkipped += 1
 		continue
 	
 	# Create build command
-	buildCMD = [args.mkvmerge_bin.encode("utf-8"), "--output"]
+	buildCMD = [args.mkvmerge_bin.encode(systemEncoding), "--command-line-charset", systemEncoding, "--output"]
 	target = u"%s.tmp" % path
-	buildCMD.append(target.encode("utf-8"))
+	buildCMD.append(target.encode(systemEncoding))
 	
 	# Add audio tracks to build command
 	if len(unWantedAudio) > 0:
@@ -577,11 +594,11 @@ for count, path in enumerate(processList, start=1):
 		for count, track in enumerate(wantedSubtitle): buildCMD.extend(["--default-track", ":".join((track.id.encode("ascii"), "0"))])
 	
 	# Add source file to build command
-	buildCMD.append(path.encode("utf-8"))
+	buildCMD.append(path.encode(systemEncoding))
 	
 	# Attempt to process file
-	logger.info("Processing %s...", path.encode("utf-8"))
-	if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+	logger.info("Processing %s...", path.encode(systemEncoding))
+	if args.dry_run is True: logger.info("Remux is not being applied because you are in dry run mode")
 	else:
 		try:
 			# Call subprocess command to remux file
@@ -603,27 +620,27 @@ for count, path in enumerate(processList, start=1):
 			# Check if return code indicates an error
 			sys.stdout.write("\n")
 			if retcode: raise subprocess.CalledProcessError(retcode, buildCMD, output=process.communicate()[0])
-			else: logger.info("Remux of %s successful", path.encode("utf-8"))
+			else: logger.info("Remux of %s successful", path.encode(systemEncoding))
 			totalProcessed += 1
 		
 		except subprocess.CalledProcessError as e:
-			logger.error("Remux of %s failed!", path.encode("utf-8"))
+			logger.error("Remux of %s failed!", path.encode(systemEncoding))
 			logger.error(e.cmd)
 			logger.error(e.output)
 			continue
 	
 	# Preserve timestamp
 	if args.preserve_timestamp is True:
-		logger.info("Preserving timestamp of %s", path.encode("utf-8"))
-		if args.dry_run is True: logger.info("Changes are not being applied because you are in dry run mode")
+		logger.info("Preserving timestamp of %s", path.encode(systemEncoding))
+		if args.dry_run is True: logger.info("Preserving timestamp is not being applied because you are in dry run mode")
 		else:
-			stat = os.stat(path.encode("utf-8"))
-			os.utime(target, (stat.st_atime, stat.st_mtime))
+			stat = os.stat(path.encode(systemEncoding))
+			os.utime(target.encode(systemEncoding), (stat.st_atime, stat.st_mtime))
 	
 	# Check how much space was saved 
 	if args.dry_run is False:
-		orgSize = float(os.path.getsize(path))
-		newSize = float(os.path.getsize(target))
+		orgSize = float(os.path.getsize(path.encode(systemEncoding)))
+		newSize = float(os.path.getsize(target.encode(systemEncoding)))
 		saved = orgSize - newSize
 		logger.info("Saved %.2fMB of disk space", saved / 1024 / 1024)
 		totalSaved.append(saved)
@@ -633,10 +650,10 @@ for count, path in enumerate(processList, start=1):
 		try: os.unlink(path)
 		except:
 			os.unlink(target)
-			logger.error("Renaming of %s to %s failed!", target, path)
+			logger.error("Renaming of %s to %s failed!", target.encode(systemEncoding), path.encode(systemEncoding))
 		else:
 			# Rename temp file to original path
-			os.rename(target, path)
+			os.rename(target.encode(systemEncoding), path.encode(systemEncoding))
 
 logger.info("=========")
 logger.info("Finished processing.")
