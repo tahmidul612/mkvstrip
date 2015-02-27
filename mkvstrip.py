@@ -5,7 +5,7 @@ Welcome to mkvstrip.py.  This script can go through a folder looking for extrane
 audio and subtitle tracks and removes them.  Additionally you can choose to
 overwrite the title field of the mkv.
 
-Version = 1.0 (4/9/2014)
+Version = 0.9.5 (27/2/2015)
 The latest version can always be found at https://github.com/cyberjock/mkvstrip
 
 This python script has the following requirements:
