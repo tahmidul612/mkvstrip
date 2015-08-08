@@ -194,7 +194,6 @@ cformatter = logging.Formatter("%(levelname)-7s --- %(message)s")
 # Create console handler with a log level of debug and info
 consoleHandler1Stdout = logging.StreamHandler(sys.stdout)
 consoleHandler1Stdout.setLevel(logging.DEBUG if args.debug else logging.INFO)
-consoleHandler1Stdout.setLevel(logging.INFO)
 consoleHandler1Stdout.setFormatter(cformatter)
 consoleHandler1Stdout.addFilter(InfoFilter())
 logger.addHandler(consoleHandler1Stdout)
