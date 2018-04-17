@@ -59,7 +59,8 @@ class LangSplitter(argparse.Action):
 parser = argparse.ArgumentParser(description="Strips unnecessary tracks from MKV files.")
 parser.add_argument("path", help="Path to where your MKVs are stored. Can be a directory or a file.")
 parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
-parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True, help="The path to the MKVMerge executable.")
+parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True,
+                    help="The path to the MKVMerge executable.")
 parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=LangSplitter, required=True,
                     help="3-character language code (e.g. eng). To retain multiple, "
                          "separate languages with a comma (e.g. eng,spa).")
