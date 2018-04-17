@@ -18,7 +18,7 @@ Usage
 =====
 
 ```
-mkvstrip.py [-h] [-t] -b MKVMERGE_BIN -l LANGUAGE path
+mkvstrip.py [-h] [-t] -b path -l lang path
 
 positional arguments:
   path                  Path to where your MKVs are stored. Can be a directory
