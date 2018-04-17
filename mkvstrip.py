@@ -317,14 +317,14 @@ class MKVFile(object):
 
 def main():
     """Check all mkv files an remove unnecessary tracks."""
-    try:
-        for mkv_file in walk_directory(args.path):
-            mkv_obj = MKVFile(mkv_file)
-            if mkv_obj.remux_required:
-                mkv_obj.remove_tracks()
-    except KeyboardInterrupt:
-        pass
+    for mkv_file in walk_directory(args.path):
+        mkv_obj = MKVFile(mkv_file)
+        if mkv_obj.remux_required:
+            mkv_obj.remove_tracks()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
