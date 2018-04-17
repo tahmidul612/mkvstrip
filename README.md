@@ -28,8 +28,7 @@ optional arguments:
   -h, --help                    show this help message and exit
   -t, --dry-run                 Enable mkvmerge dry run for testing.
   -b path, --mkvmerge-bin path  The path to the MKVMerge executable.
-  -l lang, --language lang
-                                3-character language code (e.g. eng). To retain
+  -l lang, --language lang      3-character language code (e.g. eng). To retain
                                 multiple, separate languages with a comma (e.g.
                                 eng,spa).
 ```
