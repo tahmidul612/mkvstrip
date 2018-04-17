@@ -1,28 +1,35 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/181ade83b7c84a738ee74d913bbe9eeb)](https://www.codacy.com/app/willforde/mkvstrip?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=willforde/mkvstrip&amp;utm_campaign=Badge_Grade)
+
 mkvstrip
 ========
 
-Python script that acts as a front end for mkvtoolnix to remove excess audio and subtitle streams from mkv files as well as correct title information. The intent is to allow someone to setup a cronjob to run this script at regular intervals (for example, every night) and this script will keep your Movie collection from collecting excessive tracks.
-
-This script was designed for running in a FreeNAS jail (FreeBSD) but should run in any OS that meets the requirements of this script.
+Python script that acts as a front end for mkvtoolnix to remove excess
+audio and subtitle streams from mkv files as well as correct title
+information. The intent is to allow someone to setup a cronjob to run
+this script at regular intervals (for example, every night) and this
+script will keep your Movie collection from collecting excessive tracks.
 
 Requirements:
 
-1.  MKVToolNix 7.0.0 and 7.1.0 tested (should work on all recent and future versions though)
-2.  Python 2.7.x
+1.  MKVToolNix
+2.  Python3
 
-The ultimate goal is to make this script something that can be setup by variables in the script and then run nightly as a cronjob to keep your collection optimal.  See bugs as doing this would cause very undesirable behavior.
+Usage
+=====
 
-Known bugs:
+```
+mkvstrip.py [-h] [-t] -b MKVMERGE_BIN -l LANGUAGE path
 
-1.  Movies like Alien³, if titled properly, will fail on some systems that have the locale set to "C". This has to do with the character-set used in the filename.  This obviously needs to be fixed because quite a few movies, if titled properly, have odd symbols.
+positional arguments:
+  path                  Path to where your MKVs are stored. Can be a directory
+                        or a file.
 
-Future features to add:
-
-1.  Clean up the output of -h to be a bit more "user friendly".
-2.  Subtitles being streamed into the file.  If "Movie (1900).mkv" exists along with "Movie (1900).eng.srt" then assume the subtitle track needs to be added and add it as language english because that's what the file says it is.  Optionally we can also have it add subtitles as "und" if the filename doesn't specify a language.  After successful merging of the subtitle then delete the .srt file.
-
-I am not an expert python coder so any help with bugs or features from the community is much appreciated!
-
-Thanks to the following for their help with getting this working:
-
-Terminus, willforde
+optional arguments:
+  -h, --help                    show this help message and exit
+  -t, --dry-run                 Enable mkvmerge dry run for testing.
+  -b path, --mkvmerge-bin path  The path to the MKVMerge executable.
+  -l lang, --language lang
+                                3-character language code (e.g. eng). To retain
+                                multiple, separate languages with a comma (e.g.
+                                eng,spa).
+```
