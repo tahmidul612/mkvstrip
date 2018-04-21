@@ -3,11 +3,11 @@
 mkvstrip
 ========
 
-Python script that acts as a front end for mkvtoolnix to remove excess
-audio and subtitle streams from mkv files as well as correct title
-information. The intent is to allow someone to setup a cronjob to run
-this script at regular intervals (for example, every night) and this
-script will keep your Movie collection from collecting excessive tracks.
+Python script, that acts as a front end for mkvtoolnix to remove excess
+audio and subtitle streams from mkv files. Also correcting title
+information if needed. The intention is to allow someone to setup a cronjob, to run
+this script at regular intervals (for example, every night). 
+Keeping your Movie collection from collecting excessive tracks.
 
 Requirements:
 
