@@ -61,7 +61,10 @@ def walk_directory(path):
     """
     movie_list = []
     if os.path.isfile(path):
-        movie_list.append(path)
+        if path.lower().endswith(".mkv"):
+            movie_list.append(path)
+        else:
+            raise ValueError("Given file is not a valid mkv file: '%s'" % path)
 
     elif os.path.isdir(path):
         dirs = []
