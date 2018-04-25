@@ -46,28 +46,8 @@ import json
 import sys
 import os
 
-
-# Custom action to split language by ','
-class LangSplitter(argparse.Action):
-    def __call__(self, _, namespace, values, option_string=None):
-        items = getattr(namespace, self.dest)
-        items.extend(values.split(","))
-        setattr(namespace, self.dest, items)
-
-
-# Create Parser to parse the required arguments
-parser = argparse.ArgumentParser(description="Strips unnecessary tracks from MKV files.")
-parser.add_argument("path", help="Path to where your MKVs are stored. Can be a directory or a file.")
-parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
-parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True,
-                    help="The path to the MKVMerge executable.")
-parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=LangSplitter, required=True,
-                    help="3-character language code (e.g. eng). To retain multiple, "
-                         "separate languages with a comma (e.g. eng,spa).")
-
-# Parse All Args
-args = parser.parse_args()
-args.path = os.path.realpath(args.path)
+# Global parser namespace
+args = None
 
 
 def walk_directory(path):
@@ -79,13 +59,11 @@ def walk_directory(path):
     :return: List of processed mkv files.
     :rtype: list[str]
     """
-    print("Searching for MKV files to process.")
-    print("Warning: This may take some time...")
-
     movie_list = []
     if os.path.isfile(path):
         movie_list.append(path)
-    else:
+
+    elif os.path.isdir(path):
         dirs = []
         # Walk through the directory
         for dirpath, _, filenames in os.walk(path):
@@ -102,6 +80,8 @@ def walk_directory(path):
             for filename in filenames:
                 fullpath = os.path.join(dirpath, filename)
                 movie_list.append(fullpath)
+    else:
+        raise FileNotFoundError("[Errno 2] No such file or directory: '%s'" % path)
 
     return movie_list
 
@@ -142,7 +122,7 @@ def remux_file(command):
 
         # Check if return code indicates an error
         sys.stdout.write("\n")
-        if retcode != 0:
+        if retcode:
             raise subprocess.CalledProcessError(retcode, command, output=process.communicate()[0])
 
     except subprocess.CalledProcessError as e:
@@ -172,6 +152,26 @@ def replace_file(tmp_file, org_file):
         os.unlink(tmp_file)
         print("Renaming failed: %s => %s" % (tmp_file, org_file))
         print(e)
+
+
+class AppendSplitter(argparse.Action):
+    """
+    Custom action to split multiple parameters which are
+    separated by a comma, and append then to a default list.
+    """
+    def __call__(self, _, namespace, values, option_string=None):
+        items = self.default if isinstance(self.default, list) else []
+        items.extend(values.split(","))
+        setattr(namespace, self.dest, items)
+
+
+class RealPath(argparse.Action):
+    """
+    Custom action to convert given path to a full canonical path,
+    eliminating any symbolic links if encountered.
+    """
+    def __call__(self, _, namespace, value, option_string=None):
+        setattr(namespace, self.dest, os.path.realpath(value))
 
 
 class Track(object):
@@ -208,10 +208,10 @@ class MKVFile(object):
         command = [args.mkvmerge_bin, "-i", "-F", "json", path]
 
         # Ask mkvmerge for the json info
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, _ = process.communicate()
-        if process.returncode != 0:
-            raise RuntimeError("mkvmerge failed to identify: {}".format(self.filename))
+        process = subprocess.Popen(command, stdout=subprocess.PIPE)
+        stdout, _ = process.communicate(timeout=10)
+        if process.returncode:
+            raise RuntimeError("[Error {}] mkvmerge failed to identify: {}".format(process.returncode, self.filename))
 
         # Process the json response
         json__data = json.loads(stdout)
@@ -316,8 +316,30 @@ class MKVFile(object):
                 os.remove(tmp_file)
 
 
-def main():
-    """Check all mkv files an remove unnecessary tracks."""
+def main(params=None):
+    """
+    Check all mkv files an remove unnecessary tracks.
+
+    :param params: [opt] List of arguments to pass to argparse.
+    :type params: list or tuple
+    """
+    # Create Parser to parse the required arguments
+    parser = argparse.ArgumentParser(description="Strips unnecessary tracks from MKV files.")
+    parser.add_argument("path", action=RealPath,
+                        help="Path to where your MKVs are stored. Can be a directory or a file.")
+    parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
+    parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True,
+                        help="The path to the MKVMerge executable.")
+    parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=AppendSplitter, required=True,
+                        help="3-character language code (e.g. eng). To retain multiple, "
+                             "separate languages with a comma (e.g. eng,spa).")
+
+    # Parse the list of given arguments
+    globals()["args"] = parser.parse_args(params)
+
+    # Iterate over all found mkv files
+    print("Searching for MKV files to process.")
+    print("Warning: This may take some time...")
     for mkv_file in walk_directory(args.path):
         mkv_obj = MKVFile(mkv_file)
         if mkv_obj.remux_required:
