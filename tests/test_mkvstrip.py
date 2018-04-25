@@ -76,15 +76,67 @@ class IntegratedTests(unittest.TestCase):
         self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
                                          stdout=subprocess.PIPE)
 
-    @mock.patch.object(os.path, "isdir", return_value=True)
-    @mock.patch.object(os, "walk", return_value=[("/movies/", [], ["movie_one.mkv", "desktop.ini"])])
-    def test_directory(self, mock_walk, *_):
-        self.mock_isfile.return_value = False
-        self.mock_sub.return_value.communicate.return_value = (read("no_tracks.json"), None)
 
-        mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/"])
-        mock_walk.assert_called_with("/movies")
+class TestWalk(unittest.TestCase):
+    def setUp(self):
+        patch_isfile = mock.patch("os.path.isfile", return_value=False)
+        patch_isdir = mock.patch("os.path.isdir", return_value=False)
+        self.mock_isfile = patch_isfile.start()
+        self.mock_isdir = patch_isdir.start()
+        self.addCleanup(mock.patch.stopall)
+
+    def test_file(self):
+        self.mock_isfile.return_value = True
+        ret = mkvstrip.walk_directory("/movies/test.mkv")
+        self.assertListEqual(ret, ["/movies/test.mkv"])
+        self.assertTrue(self.mock_isfile.called)
+        self.mock_isdir.assert_not_called()
+
+    def test_file_invalid(self):
+        self.mock_isfile.return_value = True
+        with self.assertRaises(ValueError):
+            mkvstrip.walk_directory("/movies/desktop.ini")
+
+        self.assertTrue(self.mock_isfile.called)
+        self.mock_isdir.assert_not_called()
+
+    @mock.patch("os.walk", return_value=[("/movies/", [], ["movie_one.mkv", "desktop.ini", "movie_two.mkv"])])
+    def test_dir(self, mock_walk):
+        self.mock_isdir.return_value = True
+        ret = mkvstrip.walk_directory("/movies/")
+        self.assertListEqual(ret, ["/movies/movie_one.mkv", "/movies/movie_two.mkv"])
+        self.assertTrue(self.mock_isfile.called)
+        self.assertTrue(self.mock_isdir.called)
+        self.assertTrue(mock_walk.called)
+
+    @mock.patch("os.walk", return_value=[("/movies/", [], ["desktop.ini"])])
+    def test_dir_no_mkv(self, mock_walk):
+        self.mock_isdir.return_value = True
+        ret = mkvstrip.walk_directory("/movies/")
+        self.assertFalse(ret)
+        self.assertTrue(self.mock_isfile.called)
+        self.assertTrue(self.mock_isdir.called)
+        self.assertTrue(mock_walk.called)
+
+    def test_not_found(self):
+        with self.assertRaises(FileNotFoundError):
+            mkvstrip.walk_directory("/movies/")
+
+        self.assertTrue(self.mock_isfile.called)
+        self.assertTrue(self.mock_isdir.called)
 
 
-class UnitTests(unittest.TestCase):
+class TestRemux(unittest.TestCase):
+    pass
+
+
+class TestReplace(unittest.TestCase):
+    pass
+
+
+class TestTrack(unittest.TestCase):
+    pass
+
+
+class TestMKVFile(unittest.TestCase):
     pass
