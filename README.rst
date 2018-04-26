@@ -8,7 +8,7 @@
     :target: https://www.codacy.com/app/willforde/mkvstrip?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=willforde/mkvstrip&amp;utm_campaign=Badge_Grade
 
 
-MKVstrip
+MKVStrip
 --------
 
 Python script, that acts as a front end for mkvtoolnix to remove
