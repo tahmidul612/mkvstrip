@@ -100,10 +100,10 @@ def remux_file(command):
     """
     # Skip remuxing if in dry run mode
     if args.dry_run:
-        print("Dry run: 100%")
+        print("Dry run 100%")
         return False
 
-    sys.stdout.write("Progress: 0%")
+    sys.stdout.write("Progress 0%")
     sys.stdout.flush()
 
     try:
@@ -126,7 +126,7 @@ def remux_file(command):
         # Check if return code indicates an error
         sys.stdout.write("\n")
         if retcode:
-            raise subprocess.CalledProcessError(retcode, command, output=process.communicate()[0])
+            raise subprocess.CalledProcessError(retcode, command, output=process.stdout)
 
     except subprocess.CalledProcessError as e:
         print("Remux failed!")
@@ -149,7 +149,7 @@ def replace_file(tmp_file, org_file):
 
     # Overwrite original file
     try:
-        os.remove(org_file)
+        os.unlink(org_file)
         os.rename(tmp_file, org_file)
     except EnvironmentError as e:
         os.unlink(tmp_file)
