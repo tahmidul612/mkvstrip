@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/willforde/mkvstrip.svg?branch=master)](https://travis-ci.org/willforde/mkvstrip)
+[![Coverage Status](https://coveralls.io/repos/github/willforde/mkvstrip/badge.svg?branch=master)](https://coveralls.io/github/willforde/mkvstrip?branch=dev)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/181ade83b7c84a738ee74d913bbe9eeb)](https://www.codacy.com/app/willforde/mkvstrip?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=willforde/mkvstrip&amp;utm_campaign=Badge_Grade)
 
 mkvstrip
