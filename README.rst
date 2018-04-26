@@ -1,7 +1,7 @@
 .. image:: https://travis-ci.org/willforde/mkvstrip.svg?branch=master
     :target: https://travis-ci.org/willforde/mkvstrip
 
-.. image:: https://coveralls.io/repos/github/willforde/mkvstrip/badge.svg?branch=dev
+.. image:: https://coveralls.io/repos/github/willforde/mkvstrip/badge.svg?branch=master
     :target: https://coveralls.io/github/willforde/mkvstrip?branch=master
 
 .. image:: https://api.codacy.com/project/badge/Grade/181ade83b7c84a738ee74d913bbe9eeb
