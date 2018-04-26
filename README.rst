@@ -29,8 +29,7 @@ Usage
 mkvstrip.py [-h] [-t] -b path -l lang path
 
 positional arguments:
-  path:                         Path to where your MKVs are stored. Can be a directory
-                                or a file.
+  path:                         Where your MKV files are stored. Can be a directory or a file.
 
 optional arguments:
   -h, --help                    show this help message and exit
