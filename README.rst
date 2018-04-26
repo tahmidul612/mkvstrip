@@ -8,7 +8,7 @@
     :target: https://www.codacy.com/app/willforde/mkvstrip?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=willforde/mkvstrip&amp;utm_campaign=Badge_Grade
 
 
-mkvstrip
+MKVstrip
 --------
 
 Python script, that acts as a front end for mkvtoolnix to remove
@@ -23,18 +23,36 @@ Requirements:
 1.  MKVToolNix
 2.  Python3
 
+Install
+-------
+::
+
+    pip install mkvstrip
+
 Usage
 -----
+Posix::
 
-mkvstrip.py [-h] [-t] -b path -l lang path
+    mkvstrip -b /usr/bin/mkvmerge -l eng,fre /mnt/movies
 
-positional arguments:
-  path:                         Where your MKV files are stored. Can be a directory or a file.
+Windows::
 
-optional arguments:
-  -h, --help                    show this help message and exit
-  -t, --dry-run                 Enable mkvmerge dry run for testing.
-  -b path, --mkvmerge-bin path  The path to the MKVMerge executable.
-  -l lang, --language lang      3-character language code (e.g. eng). To retain
-                                multiple, separate languages with a comma (e.g.
-                                eng,spa).
+    mkvstrip -b C:\\Program/ Files\MKVToolNix\mkvmerge.exe -l eng,fre \\nas\movies
+
+
+CLI Arguments
+-------------
+::
+
+    mkvstrip.py [-h] [-t] -b path -l lang path
+
+    positional arguments:
+      path                         Where your MKV files are stored. Can be a directory or a file.
+
+    optional arguments:
+      -h, --help                    show this help message and exit
+      -t, --dry-run                 Enable mkvmerge dry run for testing.
+      -b path, --mkvmerge-bin path  The path to the MKVMerge executable.
+      -l lang, --language lang      3-character language code (e.g. eng). To retain
+                                    multiple, separate languages with a comma (e.g.
+                                    eng,spa).
