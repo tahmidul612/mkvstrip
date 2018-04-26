@@ -329,7 +329,7 @@ def main(params=None):
     # Create Parser to parse the required arguments
     parser = argparse.ArgumentParser(description="Strips unnecessary tracks from MKV files.")
     parser.add_argument("path", action=RealPath,
-                        help="Path to where your MKVs are stored. Can be a directory or a file.")
+                        help="Where your MKV files are stored. Can be a directory or a file.")
     parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
     parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True,
                         help="The path to the MKVMerge executable.")
