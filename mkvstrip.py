@@ -108,7 +108,7 @@ def remux_file(command):
 
     try:
         # Call subprocess command to remux file
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, universal_newlines=True)
 
         # Display Percentage until subprocess has finished
         retcode = process.poll()
