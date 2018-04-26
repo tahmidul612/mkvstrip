@@ -129,7 +129,7 @@ class TestWalk(unittest.TestCase):
 
 class TestRemux(unittest.TestCase):
     def setUp(self):
-        patch_args = mock.patch.object(mkvstrip, "args", dry_run=False)
+        patch_args = mock.patch.object(mkvstrip, "cli_args", dry_run=False)
         self.mock_args = patch_args.start()
         self.addCleanup(mock.patch.stopall)
 
@@ -218,7 +218,7 @@ class TestTrack(unittest.TestCase):
 class TestMKVFile(unittest.TestCase):
     def setUp(self):
         patch_sub = mock.patch.object(subprocess, "Popen", spec=True, returncode=0)
-        patch_args = mock.patch.object(mkvstrip, "args", mkvmerge_bin="/usr/bin/mkvmerge", language=["und", "eng"])
+        patch_args = mock.patch.object(mkvstrip, "cli_args", mkvmerge_bin="/usr/bin/mkvmerge", language=["und", "eng"])
         self.mock_sub = patch_sub.start()
         self.mock_args = patch_args.start()
         self.addCleanup(mock.patch.stopall)

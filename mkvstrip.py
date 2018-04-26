@@ -47,7 +47,19 @@ import sys
 import os
 
 # Global parser namespace
-args = None
+cli_args = None
+
+
+def catch_interrupt(func):
+    """Decorator to catch Keyboard Interrupts and silently exit."""
+    def wrapper(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except KeyboardInterrupt:
+            pass
+
+    # The function been catched
+    return wrapper
 
 
 def walk_directory(path):
@@ -99,7 +111,7 @@ def remux_file(command):
     :rtype: bool
     """
     # Skip remuxing if in dry run mode
-    if args.dry_run:
+    if cli_args.dry_run:
         print("Dry run 100%")
         return False
 
@@ -208,7 +220,7 @@ class MKVFile(object):
         self.path = path
 
         # Commandline auguments for extracting info about the mkv file
-        command = [args.mkvmerge_bin, "-i", "-F", "json", path]
+        command = [cli_args.mkvmerge_bin, "-i", "-F", "json", path]
 
         # Ask mkvmerge for the json info
         process = subprocess.Popen(command, stdout=subprocess.PIPE)
@@ -244,7 +256,7 @@ class MKVFile(object):
 
         # Iterate through all tracks to find which track to keep or remove
         for track in {"audio": self.audio_tracks, "subtitle": self.subtitle_tracks}[track_type]:
-            if track.lang in args.language:
+            if track.lang in cli_args.language:
                 # Tracks we want to keep
                 keep.append(track)
             else:
@@ -274,7 +286,7 @@ class MKVFile(object):
     def remove_tracks(self):
         """Remove the unwanted tracks."""
         # The command line args required to remux the mkv file
-        command = [args.mkvmerge_bin, "--output"]
+        command = [cli_args.mkvmerge_bin, "--output"]
         print("\nRemuxing:", self.filename)
         print("============================")
 
@@ -319,6 +331,7 @@ class MKVFile(object):
                 os.remove(tmp_file)
 
 
+@catch_interrupt
 def main(params=None):
     """
     Check all mkv files an remove unnecessary tracks.
@@ -338,19 +351,16 @@ def main(params=None):
                              "separate languages with a comma (e.g. eng,spa).")
 
     # Parse the list of given arguments
-    globals()["args"] = parser.parse_args(params)
+    globals()["cli_args"] = parser.parse_args(params)
 
     # Iterate over all found mkv files
     print("Searching for MKV files to process.")
     print("Warning: This may take some time...")
-    for mkv_file in walk_directory(args.path):
+    for mkv_file in walk_directory(cli_args.path):
         mkv_obj = MKVFile(mkv_file)
         if mkv_obj.remux_required:
             mkv_obj.remove_tracks()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        pass
+    main()
