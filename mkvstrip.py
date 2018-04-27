@@ -35,7 +35,7 @@ Github: https://github.com/willforde/mkvstrip
 Codacy: https://app.codacy.com/app/willforde/mkvstrip/dashboard
 """
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from functools import lru_cache
 from operator import itemgetter
