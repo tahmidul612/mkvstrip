@@ -35,7 +35,7 @@ Github: https://github.com/willforde/mkvstrip
 Codacy: https://app.codacy.com/app/willforde/mkvstrip/dashboard
 """
 
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 from functools import lru_cache
 from operator import itemgetter
@@ -55,7 +55,7 @@ def catch_interrupt(func):
     def wrapper(*args, **kwargs):
         try:
             func(*args, **kwargs)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt:  # pragma: no cover
             pass
 
     # The function been catched
