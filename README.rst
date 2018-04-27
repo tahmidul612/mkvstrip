@@ -1,3 +1,6 @@
+.. image:: https://badge.fury.io/py/mkvstrip.svg
+    :target: https://pypi.org/project/mkvstrip/
+
 .. image:: https://travis-ci.org/willforde/mkvstrip.svg?branch=master
     :target: https://travis-ci.org/willforde/mkvstrip
 
