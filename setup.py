@@ -101,7 +101,10 @@ class UploadCommand(Command):
             pass
 
         self.status("Building Source and Wheel (universal) distribution...")
-        os.system("{0} setup.py sdist bdist_wheel --universal".format(sys.executable))
+        command = "{0} setup.py bdist_wheel".format(sys.executable)
+        if "2.7" in REQUIRES_PYTHON and "3." in REQUIRES_PYTHON:
+            command += " --universal"
+        os.system(command)
 
         self.status("Uploading the package to PyPi via Twine...")
         os.system("twine upload dist/*")
