@@ -49,6 +49,11 @@ import os
 # Global parser namespace
 cli_args = None
 
+if sys.platform == "Windows":
+    BIN_DEFAULT = "C:\\\\Program Files\\MKVToolNix\\mkvmerge.exe"
+else:
+    BIN_DEFAULT = "mkvmerge"
+
 
 def catch_interrupt(func):
     """Decorator to catch Keyboard Interrupts and silently exit."""
@@ -344,7 +349,8 @@ def main(params=None):
     parser.add_argument("path", action=RealPath,
                         help="Where your MKV files are stored. Can be a directory or a file.")
     parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
-    parser.add_argument("-b", "--mkvmerge-bin", action="store", metavar="path", required=True,
+    parser.add_argument("-b", "--mkvmerge-bin", default=BIN_DEFAULT,
+                        action="store", metavar="path",
                         help="The path to the MKVMerge executable.")
     parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=AppendSplitter, required=True,
                         help="3-character language code (e.g. eng). To retain multiple, "
