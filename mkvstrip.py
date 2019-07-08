@@ -228,15 +228,15 @@ class MKVFile(object):
         command = [cli_args.mkvmerge_bin, "-i", "-F", "json", path]
 
         # Ask mkvmerge for the json info
-        process = subprocess.Popen(command, stdout=subprocess.PIPE)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, universal_newlines=True)
         stdout, _ = process.communicate(timeout=10)
         if process.returncode:
             raise RuntimeError("[Error {}] mkvmerge failed to identify: {}".format(process.returncode, self.filename))
 
         # Process the json response
-        json__data = json.loads(stdout)
+        json_data = json.loads(stdout)
         track_map = {"video": self.video_tracks, "audio": self.audio_tracks, "subtitles": self.subtitle_tracks}
-        for track_data in json__data["tracks"]:
+        for track_data in json_data["tracks"]:
             track_obj = Track(track_data)
             track_map[track_obj.type].append(track_obj)
 
