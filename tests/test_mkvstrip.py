@@ -229,7 +229,10 @@ class TestTrack(unittest.TestCase):
 class TestMKVFile(unittest.TestCase):
     def setUp(self):
         patch_sub = mock.patch.object(subprocess, "Popen", spec=True, returncode=0)
-        patch_args = mock.patch.object(mkvstrip, "cli_args", mkvmerge_bin="/usr/bin/mkvmerge", language=["und", "eng"])
+        patch_args = mock.patch.object(mkvstrip, "cli_args",
+                                       mkvmerge_bin="/usr/bin/mkvmerge",
+                                       language=["und", "eng"],
+                                       subs_language=None)
         self.mock_sub = patch_sub.start()
         self.mock_args = patch_args.start()
         self.addCleanup(mock.patch.stopall)
@@ -280,6 +283,13 @@ class TestMKVFile(unittest.TestCase):
         self.mock_sub.return_value.communicate.return_value = (read("remove_sub_track.json"), None)
         mkv = mkvstrip.MKVFile("/movies/test.mkv")
         self.assertTrue(mkv.remux_required)
+
+    def test_remux_required_six(self):
+        self.mock_sub.return_value.communicate.return_value = (read("remove_sub_track.json"), None)
+        mkvstrip.cli_args.language = ['fre']
+
+        mkv = mkvstrip.MKVFile("/movies/test.mkv")
+        self.assertFalse(mkv.remux_required)
 
     @mock.patch.object(mkvstrip, "replace_file")
     @mock.patch.object(mkvstrip, "remux_file", return_value=True)
