@@ -71,7 +71,7 @@ class IntegratedTests(unittest.TestCase):
                                          stdout=subprocess.PIPE)
 
     def test_remove_audio_only_dry_run(self):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
 
         input_file = '/movies/test.mkv'
         real_path = os.path.realpath(input_file)
@@ -272,7 +272,7 @@ class TestMKVFile(unittest.TestCase):
         self.assertTrue(mkv.remux_required)
 
     def test_remux_required_four(self):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
         mkv = mkvstrip.MKVFile("/movies/test.mkv")
         self.assertTrue(mkv.remux_required)
 
@@ -284,7 +284,7 @@ class TestMKVFile(unittest.TestCase):
     @mock.patch.object(mkvstrip, "replace_file")
     @mock.patch.object(mkvstrip, "remux_file", return_value=True)
     def test_remove_tracks_audio(self, mock_remux, mock_replace):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
         with mock.patch("sys.stdout", new_callable=io.StringIO):
             mkvstrip.MKVFile("/movies/test.mkv").remove_tracks()
 
