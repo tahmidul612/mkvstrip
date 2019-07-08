@@ -49,7 +49,7 @@ import os
 # Global parser namespace
 cli_args = None
 
-if sys.platform == "Windows":
+if sys.platform == "win32":
     BIN_DEFAULT = "C:\\\\Program Files\\MKVToolNix\\mkvmerge.exe"
 else:
     BIN_DEFAULT = "mkvmerge"
