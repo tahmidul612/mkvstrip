@@ -365,13 +365,15 @@ def main(params=None):
                         action="store", metavar="path",
                         help="The path to the MKVMerge executable.")
     parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=AppendSplitter, required=True,
-                        help="3-character language code (e.g. eng). To retain multiple, "
-                             "separate languages with a comma (e.g. eng,spa).")
+                        help="Comma-separated list of subtitle and audio languages to retain. E.g. eng,fre. "
+                             "Language codes can be either the 3 letters bibliographic ISO-639-2 form "
+                             "(like \"fre\" for French), or such a language code followed by a dash and a country code "
+                             "for specialities in languages (like \"fre-ca\" for Canadian French). "
+                             "Country codes are the same as used for internet domains.")
     parser.add_argument("-s", "--subs-language", metavar="subs-lang", action=AppendSplitter, required=False,
                         dest="subs_language", default=None,
-                        help="If specified, defines subtitle languages to retain. "
-                             "3-character language code (e.g. eng). To retain multiple, "
-                             "separate languages with a comma (e.g. eng,spa).")
+                        help="If specified, defines subtitle languages to retain. See description of --language "
+                             "for syntax.")
 
     # Parse the list of given arguments
     globals()["cli_args"] = parser.parse_args(params)
