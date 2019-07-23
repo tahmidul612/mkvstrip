@@ -28,17 +28,20 @@ class IntegratedTests(unittest.TestCase):
         self.mock_sub.return_value.communicate.return_value = (read("no_tracks.json"), None)
         mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
 
-        self.mock_isfile.assert_called_once_with('/movies/test.mkv')
-        self.mock_sub.assert_called_once_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
-                                              stdout=subprocess.PIPE)
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        self.mock_sub.assert_called_once_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', real_path],
+                                              stdout=subprocess.PIPE, universal_newlines=True)
 
     def test_clean_tracks(self):
         self.mock_sub.return_value.communicate.return_value = (read("clean_tracks.json"), None)
 
-        mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
-        self.mock_isfile.assert_called_with('/movies/test.mkv')
-        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
-                                         stdout=subprocess.PIPE)
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", input_file])
+        self.mock_isfile.assert_called_with(real_path)
+        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', real_path],
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
     @mock.patch.multiple(os, utime=mock.DEFAULT, unlink=mock.DEFAULT, rename=mock.DEFAULT, stat=mock.DEFAULT)
     def test_remove_tracks(self, **multi):
@@ -48,34 +51,42 @@ class IntegratedTests(unittest.TestCase):
         self.mock_sub.return_value.configure_mock(**{"communicate.return_value": (read("remove_tracks.json"), None),
                                                      "poll.side_effect": [None, None, 0]})
 
-        mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
-        self.mock_isfile.assert_called_with("/movies/test.mkv")
-        multi["stat"].assert_called_with("/movies/test.mkv")
-        multi["unlink"].assert_called_with("/movies/test.mkv")
-        multi["rename"].assert_called_with("/movies/test.mkv.tmp", "/movies/test.mkv")
-        multi["utime"].assert_called_with("/movies/test.mkv.tmp", (1512084181.0, 1512084181.0))
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        mkvstrip.main(["-b", "/usr/bin/mkvmerge", "-l", "eng", input_file])
+        self.mock_isfile.assert_called_with(real_path)
+        multi["stat"].assert_called_with(real_path)
+        multi["unlink"].assert_called_with(real_path)
+        multi["rename"].assert_called_with(real_path + ".tmp", real_path)
+        multi["utime"].assert_called_with(real_path + ".tmp", (1512084181.0, 1512084181.0))
         self.assertTrue(self.mock_sub.called)
 
     def test_remove_tracks_dry_run(self):
         self.mock_sub.return_value.communicate.return_value = (read("remove_tracks.json"), None)
 
-        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
-        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
-                                         stdout=subprocess.PIPE)
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", input_file])
+        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', real_path],
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
     def test_remove_audio_only_dry_run(self):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
 
-        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
-        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
-                                         stdout=subprocess.PIPE)
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", input_file])
+        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', real_path],
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
     def test_remove_sub_only_dry_run(self):
         self.mock_sub.return_value.communicate.return_value = (read("remove_sub_track.json"), None)
 
-        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", "/movies/test.mkv"])
-        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', '/movies/test.mkv'],
-                                         stdout=subprocess.PIPE)
+        input_file = '/movies/test.mkv'
+        real_path = os.path.realpath(input_file)
+        mkvstrip.main(["--dry-run", "-b", "/usr/bin/mkvmerge", "-l", "eng", input_file])
+        self.mock_sub.assert_called_with(['/usr/bin/mkvmerge', '-i', '-F', 'json', real_path],
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
 
 class TestWalk(unittest.TestCase):
@@ -218,7 +229,10 @@ class TestTrack(unittest.TestCase):
 class TestMKVFile(unittest.TestCase):
     def setUp(self):
         patch_sub = mock.patch.object(subprocess, "Popen", spec=True, returncode=0)
-        patch_args = mock.patch.object(mkvstrip, "cli_args", mkvmerge_bin="/usr/bin/mkvmerge", language=["und", "eng"])
+        patch_args = mock.patch.object(mkvstrip, "cli_args",
+                                       mkvmerge_bin="/usr/bin/mkvmerge",
+                                       language=["und", "eng"],
+                                       subs_language=None)
         self.mock_sub = patch_sub.start()
         self.mock_args = patch_args.start()
         self.addCleanup(mock.patch.stopall)
@@ -228,7 +242,7 @@ class TestMKVFile(unittest.TestCase):
         mkv = mkvstrip.MKVFile("/movies/test.mkv")
         self.assertFalse(mkv.remux_required)
         self.mock_sub.assert_called_with(["/usr/bin/mkvmerge", "-i", "-F", "json", "/movies/test.mkv"],
-                                         stdout=subprocess.PIPE)
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
         self.assertTrue(self.mock_sub.return_value.communicate.called)
         self.assertTrue(len(mkv.video_tracks) == 1)
@@ -243,7 +257,7 @@ class TestMKVFile(unittest.TestCase):
 
         self.assertTrue(self.mock_sub.return_value.communicate.called)
         self.mock_sub.assert_called_with(["/usr/bin/mkvmerge", "-i", "-F", "json", "/movies/test.mkv"],
-                                         stdout=subprocess.PIPE)
+                                         stdout=subprocess.PIPE, universal_newlines=True)
 
     def test_remux_required_one(self):
         self.mock_sub.return_value.communicate.return_value = (read("no_tracks.json"), None)
@@ -261,7 +275,7 @@ class TestMKVFile(unittest.TestCase):
         self.assertTrue(mkv.remux_required)
 
     def test_remux_required_four(self):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
         mkv = mkvstrip.MKVFile("/movies/test.mkv")
         self.assertTrue(mkv.remux_required)
 
@@ -270,10 +284,17 @@ class TestMKVFile(unittest.TestCase):
         mkv = mkvstrip.MKVFile("/movies/test.mkv")
         self.assertTrue(mkv.remux_required)
 
+    def test_remux_required_six(self):
+        self.mock_sub.return_value.communicate.return_value = (read("remove_sub_track.json"), None)
+        mkvstrip.cli_args.language = ['fre']
+
+        mkv = mkvstrip.MKVFile("/movies/test.mkv")
+        self.assertFalse(mkv.remux_required)
+
     @mock.patch.object(mkvstrip, "replace_file")
     @mock.patch.object(mkvstrip, "remux_file", return_value=True)
     def test_remove_tracks_audio(self, mock_remux, mock_replace):
-        self.mock_sub.return_value.communicate.return_value = (read("remove_autio_track.json"), None)
+        self.mock_sub.return_value.communicate.return_value = (read("remove_audio_track.json"), None)
         with mock.patch("sys.stdout", new_callable=io.StringIO):
             mkvstrip.MKVFile("/movies/test.mkv").remove_tracks()
 

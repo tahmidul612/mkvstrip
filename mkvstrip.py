@@ -49,7 +49,7 @@ import os
 # Global parser namespace
 cli_args = None
 
-if sys.platform == "Windows":
+if sys.platform == "win32":
     BIN_DEFAULT = "C:\\\\Program Files\\MKVToolNix\\mkvmerge.exe"
 else:
     BIN_DEFAULT = "mkvmerge"
@@ -228,15 +228,15 @@ class MKVFile(object):
         command = [cli_args.mkvmerge_bin, "-i", "-F", "json", path]
 
         # Ask mkvmerge for the json info
-        process = subprocess.Popen(command, stdout=subprocess.PIPE)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, universal_newlines=True)
         stdout, _ = process.communicate(timeout=10)
         if process.returncode:
             raise RuntimeError("[Error {}] mkvmerge failed to identify: {}".format(process.returncode, self.filename))
 
         # Process the json response
-        json__data = json.loads(stdout)
+        json_data = json.loads(stdout)
         track_map = {"video": self.video_tracks, "audio": self.audio_tracks, "subtitles": self.subtitle_tracks}
-        for track_data in json__data["tracks"]:
+        for track_data in json_data["tracks"]:
             track_obj = Track(track_data)
             track_map[track_obj.type].append(track_obj)
 
@@ -255,13 +255,22 @@ class MKVFile(object):
         :return: Tuple of tracks to keep and remove
         :rtype: tuple[list[Track]]
         """
+        languages_to_keep = cli_args.language
+        if track_type == 'audio':
+            tracks = self.audio_tracks
+        elif track_type == 'subtitle':
+            if cli_args.subs_language is not None:
+                languages_to_keep = cli_args.subs_language
+            tracks = self.subtitle_tracks
+        else:
+            assert False
+
         # Lists of track to keep & remove
         remove = []
         keep = []
-
         # Iterate through all tracks to find which track to keep or remove
-        for track in {"audio": self.audio_tracks, "subtitle": self.subtitle_tracks}[track_type]:
-            if track.lang in cli_args.language:
+        for track in tracks:
+            if track.lang in languages_to_keep:
                 # Tracks we want to keep
                 keep.append(track)
             else:
@@ -279,14 +288,17 @@ class MKVFile(object):
         :rtype: bool
         """
         # Check if any tracks need to be removed
-        # We will only remove tracks when there is also tracks that will be kepth
-        for track_type in ("audio", "subtitle"):
-            keep, remove = self._filtered_tracks(track_type)
-            if keep and remove:
-                return True
+        # We will only remove audio tracks when there is also audio tracks to keep
 
-        # If we get this far then no remuxing is required
-        return False
+        audio_to_keep, audio_to_remove = self._filtered_tracks("audio")
+        subs_to_keep, subs_to_remove = self._filtered_tracks("subtitle")
+
+        has_no_audio = not self.audio_tracks
+        has_something_to_remove = audio_to_remove or subs_to_remove
+        if (has_no_audio or audio_to_keep) and has_something_to_remove:
+            return True
+        else:
+            return False
 
     def remove_tracks(self):
         """Remove the unwanted tracks."""
@@ -353,8 +365,15 @@ def main(params=None):
                         action="store", metavar="path",
                         help="The path to the MKVMerge executable.")
     parser.add_argument("-l", "--language", default=["und"], metavar="lang", action=AppendSplitter, required=True,
-                        help="3-character language code (e.g. eng). To retain multiple, "
-                             "separate languages with a comma (e.g. eng,spa).")
+                        help="Comma-separated list of subtitle and audio languages to retain. E.g. eng,fre. "
+                             "Language codes can be either the 3 letters bibliographic ISO-639-2 form "
+                             "(like \"fre\" for French), or such a language code followed by a dash and a country code "
+                             "for specialities in languages (like \"fre-ca\" for Canadian French). "
+                             "Country codes are the same as used for internet domains.")
+    parser.add_argument("-s", "--subs-language", metavar="subs-lang", action=AppendSplitter, required=False,
+                        dest="subs_language", default=None,
+                        help="If specified, defines subtitle languages to retain. See description of --language "
+                             "for syntax.")
 
     # Parse the list of given arguments
     globals()["cli_args"] = parser.parse_args(params)
