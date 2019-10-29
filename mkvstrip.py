@@ -45,6 +45,7 @@ import time
 import json
 import sys
 import os
+from langfiles import get_langs
 
 # Global parser namespace
 cli_args = None
@@ -217,12 +218,13 @@ class MKVFile(object):
 
     :param str path: Path to the Matroska file to process.
     """
-    def __init__(self, path):
+    def __init__(self, path, langs):
         self.dirpath, self.filename = os.path.split(path)
         self.subtitle_tracks = []
         self.video_tracks = []
         self.audio_tracks = []
         self.path = path
+        self.langs = langs
 
         # Commandline auguments for extracting info about the mkv file
         command = [cli_args.mkvmerge_bin, "-i", "-F", "json", path]
@@ -255,7 +257,7 @@ class MKVFile(object):
         :return: Tuple of tracks to keep and remove
         :rtype: tuple[list[Track]]
         """
-        languages_to_keep = cli_args.language
+        languages_to_keep = self.langs
         if track_type == 'audio':
             tracks = self.audio_tracks
         elif track_type == 'subtitle':
@@ -348,6 +350,49 @@ class MKVFile(object):
                 os.remove(tmp_file)
 
 
+def strip_path(root, filename, langs):
+    # Iterate over all found mkv files
+    if not filename.endswith('mkv'):
+        return
+    fullpath = os.path.join(root, filename)
+
+    for mkv_file in walk_directory(fullpath):
+        if cli_args.verbose:
+            print("Checking", fullpath)
+        mkv_obj = MKVFile(mkv_file, langs)
+        if mkv_obj.remux_required:
+            mkv_obj.remove_tracks()
+
+
+def strip_tree(path):
+    """Walk the dirtree of the given path and strip evertyhing."""
+    # lang_roots is held as a cache per tree in this scope
+    print("Searching for MKV files to process.")
+    print("Warning: This may take some time...")
+
+    lang_roots = {}
+    real_path = os.path.realpath(path)
+
+    # This lets us use the os.walk block for a single file path input
+    if os.path.isfile(real_path):
+        dirname = os.path.dirname(real_path)
+        one_file = os.path.basename(real_path)
+        cli_args.recurse = False
+    else:
+        dirname = real_path
+        one_file = None
+
+    for root, _, filelist in os.walk(dirname):
+        langs = get_langs(dirname, root, lang_roots, cli_args)
+        if one_file is not None and one_file in filelist:
+            filelist = (one_file,)
+        for filename in filelist:
+            strip_path(root, filename, langs)
+
+        if not cli_args.recurse:
+            break
+
+
 @catch_interrupt
 def main(params=None):
     """
@@ -374,17 +419,14 @@ def main(params=None):
                         dest="subs_language", default=None,
                         help="If specified, defines subtitle languages to retain. See description of --language "
                              "for syntax.")
+    parser.add_argument("-r", "--recurse", action="store_true",
+                        default=False,
+                        help="Recurse through all paths on the command line.")
 
     # Parse the list of given arguments
     globals()["cli_args"] = parser.parse_args(params)
 
-    # Iterate over all found mkv files
-    print("Searching for MKV files to process.")
-    print("Warning: This may take some time...")
-    for mkv_file in walk_directory(cli_args.path):
-        mkv_obj = MKVFile(mkv_file)
-        if mkv_obj.remux_required:
-            mkv_obj.remove_tracks()
+    strip_tree(cli_args.path)
 
 
 if __name__ == "__main__":
