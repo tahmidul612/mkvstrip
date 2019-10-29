@@ -316,7 +316,8 @@ class MKVFile(object):
         # Iterate all tracks and mark which tracks are to be kepth
         for track_type in ("audio", "subtitle"):
             keep, remove = self._filtered_tracks(track_type)
-            if keep and remove:
+            if ((track_type == "subtitle" and cli_args.no_subtitles)
+                    or keep) and remove:
                 keep_ids = []
 
                 print("Retaining %s track(s):" % track_type)
@@ -328,7 +329,11 @@ class MKVFile(object):
                     command.extend(["--default-track", ":".join((str(track.id), "0" if count else "1"))])
 
                 # Set which tracks are to be kepth
-                command.extend(["--%s-tracks" % track_type, ",".join(keep_ids)])
+                if keep_ids:
+                    command.extend(["--%s-tracks" % track_type,
+                                    ",".join(keep_ids)])
+                elif track_type == "subtitle":
+                    command.extend(["--no-subtitles"])
 
                 # This is just here to report what tracks will be removed
                 print("Removing %s track(s):" % track_type)
@@ -374,6 +379,10 @@ def main(params=None):
                         dest="subs_language", default=None,
                         help="If specified, defines subtitle languages to retain. See description of --language "
                              "for syntax.")
+    parser.add_argument("-n", "--no-subtitles", default=False,
+                        action="store_true", dest="no_subtitles",
+                        help="If no subtitles match the languages to"
+                             " retain, strip all subtitles.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         default=False, help="Verbose output.")
 
