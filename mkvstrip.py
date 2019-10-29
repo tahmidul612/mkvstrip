@@ -374,6 +374,8 @@ def main(params=None):
                         dest="subs_language", default=None,
                         help="If specified, defines subtitle languages to retain. See description of --language "
                              "for syntax.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        default=False, help="Verbose output.")
 
     # Parse the list of given arguments
     globals()["cli_args"] = parser.parse_args(params)
@@ -384,6 +386,8 @@ def main(params=None):
     for path in cli_args.paths:
         path = os.path.realpath(path)
         for mkv_file in walk_directory(path):
+            if cli_args.verbose:
+                print("Checking", mkv_file)
             mkv_obj = MKVFile(mkv_file)
             if mkv_obj.remux_required:
                 mkv_obj.remove_tracks()
