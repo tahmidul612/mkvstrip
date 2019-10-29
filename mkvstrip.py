@@ -357,8 +357,8 @@ def strip_path(root, filename, langs):
     fullpath = os.path.join(root, filename)
 
     for mkv_file in walk_directory(fullpath):
-        if cli_args.verbose:
-            print("Checking", fullpath)
+        #if cli_args.verbose:
+        #    print("Checking", fullpath)
         mkv_obj = MKVFile(mkv_file, langs)
         if mkv_obj.remux_required:
             mkv_obj.remove_tracks()
