@@ -380,7 +380,7 @@ def main(params=None):
                         help="If specified, defines subtitle languages to retain. See description of --language "
                              "for syntax.")
     parser.add_argument("-n", "--no-subtitles", default=False,
-                        action="store_true", metavar="no_subtitles",
+                        action="store_true", dest="no_subtitles",
                         help="If no subtitles match the languages to"
                              " retain, strip all subtitles.")
 
