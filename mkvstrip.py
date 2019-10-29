@@ -289,6 +289,9 @@ class MKVFile(object):
         :return: Return True if remuxing is required else False
         :rtype: bool
         """
+        if cli_args.verbose:
+            print("Checking", self.path)
+
         # Check if any tracks need to be removed
         # We will only remove audio tracks when there is also audio tracks to keep
 
@@ -359,11 +362,9 @@ def strip_path(root, filename, langs):
     # Iterate over all found mkv files
     if not filename.endswith('mkv'):
         return
-    fullpath = os.path.join(root, filename)
 
+    fullpath = os.path.join(root, filename)
     for mkv_file in walk_directory(fullpath):
-        if cli_args.verbose:
-           print("Checking", fullpath)
         mkv_obj = MKVFile(mkv_file, langs)
         if mkv_obj.remux_required:
             mkv_obj.remove_tracks()
@@ -372,11 +373,8 @@ def strip_path(root, filename, langs):
 def strip_tree(path):
     """Walk the dirtree of the given path and strip evertyhing."""
     # lang_roots is held as a cache per tree in this scope
-    print("Searching for MKV files to process.")
-    print("Warning: This may take some time...")
-
-    lang_roots = {}
     real_path = os.path.realpath(path)
+    lang_roots = {}
 
     # This lets us use the os.walk block for a single file path input
     if os.path.isfile(real_path):
@@ -441,13 +439,7 @@ def main(params=None):
     print("Searching for MKV files to process.")
     print("Warning: This may take some time...")
     for path in cli_args.paths:
-        path = os.path.realpath(path)
-        for mkv_file in walk_directory(path):
-            if cli_args.verbose:
-                print("Checking", mkv_file)
-            mkv_obj = MKVFile(mkv_file)
-            if mkv_obj.remux_required:
-                mkv_obj.remove_tracks()
+        strip_tree(path)
 
 
 if __name__ == "__main__":
