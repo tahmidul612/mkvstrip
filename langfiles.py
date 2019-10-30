@@ -5,23 +5,23 @@ LANGS_FNS = ('lang', 'langs', '.lang', '.langs')
 
 
 def read_lang_files(lang_roots, path):
-    """Read the lang files and parse languages.
-       lang_roots is a dictionary to cache paths and languages to avoid
-       reparsing the same language files.
+    """
+    Read the lang files and parse languages.
+    lang_roots is a dictionary to cache paths and languages to avoid
+    reparsing the same language files.
     """
     if path not in lang_roots:
         lang_roots[path] = set()
         for fn in LANGS_FNS:
-            try:
-                langpath = os.path.join(path, fn)
+            langpath = os.path.join(path, fn)
+            if os.path.exists(langpath):
                 newlangs = set()
-                with open(langpath, 'r') as langfile:
+                with open(langpath, "r") as langfile:
                     for line in langfile:
-                        linelangs = set(line.strip().split(','))
+                        linelangs = set(line.strip().split(","))
                         newlangs = newlangs.union(linelangs)
                 lang_roots[path] = lang_roots[path].union(newlangs)
-            except FileNotFoundError:
-                pass
+
     return lang_roots[path]
 
 
