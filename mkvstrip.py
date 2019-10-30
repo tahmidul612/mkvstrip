@@ -316,7 +316,8 @@ class MKVFile(object):
         # Iterate all tracks and mark which tracks are to be kepth
         for track_type in ("audio", "subtitle"):
             keep, remove = self._filtered_tracks(track_type)
-            if keep and remove:
+            if ((track_type == "subtitle" and cli_args.no_subtitles)
+                    or keep) and remove:
                 keep_ids = []
 
                 print("Retaining %s track(s):" % track_type)
@@ -328,7 +329,11 @@ class MKVFile(object):
                     command.extend(["--default-track", ":".join((str(track.id), "0" if count else "1"))])
 
                 # Set which tracks are to be kepth
-                command.extend(["--%s-tracks" % track_type, ",".join(keep_ids)])
+                if keep_ids:
+                    command.extend(["--%s-tracks" % track_type,
+                                    ",".join(keep_ids)])
+                elif track_type == "subtitle":
+                    command.extend(["--no-subtitles"])
 
                 # This is just here to report what tracks will be removed
                 print("Removing %s track(s):" % track_type)
@@ -358,8 +363,8 @@ def main(params=None):
     """
     # Create Parser to parse the required arguments
     parser = argparse.ArgumentParser(description="Strips unnecessary tracks from MKV files.")
-    parser.add_argument("path", action=RealPath,
-                        help="Where your MKV files are stored. Can be a directory or a file.")
+    parser.add_argument("paths", nargs='+',
+                        help="Where your MKV files are stored. Can be a directories or files.")
     parser.add_argument("-t", "--dry-run", action="store_true", help="Enable mkvmerge dry run for testing.")
     parser.add_argument("-b", "--mkvmerge-bin", default=BIN_DEFAULT,
                         action="store", metavar="path",
@@ -374,6 +379,12 @@ def main(params=None):
                         dest="subs_language", default=None,
                         help="If specified, defines subtitle languages to retain. See description of --language "
                              "for syntax.")
+    parser.add_argument("-n", "--no-subtitles", default=False,
+                        action="store_true", dest="no_subtitles",
+                        help="If no subtitles match the languages to"
+                             " retain, strip all subtitles.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        default=False, help="Verbose output.")
 
     # Parse the list of given arguments
     globals()["cli_args"] = parser.parse_args(params)
@@ -381,10 +392,14 @@ def main(params=None):
     # Iterate over all found mkv files
     print("Searching for MKV files to process.")
     print("Warning: This may take some time...")
-    for mkv_file in walk_directory(cli_args.path):
-        mkv_obj = MKVFile(mkv_file)
-        if mkv_obj.remux_required:
-            mkv_obj.remove_tracks()
+    for path in cli_args.paths:
+        path = os.path.realpath(path)
+        for mkv_file in walk_directory(path):
+            if cli_args.verbose:
+                print("Checking", mkv_file)
+            mkv_obj = MKVFile(mkv_file)
+            if mkv_obj.remux_required:
+                mkv_obj.remove_tracks()
 
 
 if __name__ == "__main__":
