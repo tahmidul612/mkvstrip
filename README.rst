@@ -46,21 +46,21 @@ Windows::
 CLI Arguments
 -------------
 ::
-
-    mkvstrip.py [-h] [-t] [-b path] -l lang [-s subs-lang] path
+    usage: mkvstrip.py [-h] [-t] [-b path] -l lang [-s subs-lang] [-n] [-v]
+                    paths [paths ...]
 
     Strips unnecessary tracks from MKV files.
 
     positional arguments:
-      path                  Where your MKV files are stored. Can be a directory or
-                            a file.
+    paths                 Where your MKV files are stored. Can be a directories
+                            or files.
 
     optional arguments:
-      -h, --help            show this help message and exit
-      -t, --dry-run         Enable mkvmerge dry run for testing.
-      -b path, --mkvmerge-bin path
+    -h, --help            show this help message and exit
+    -t, --dry-run         Enable mkvmerge dry run for testing.
+    -b path, --mkvmerge-bin path
                             The path to the MKVMerge executable.
-      -l lang, --language lang
+    -l lang, --language lang
                             Comma-separated list of subtitle and audio languages
                             to retain. E.g. eng,fre. Language codes can be either
                             the 3 letters bibliographic ISO-639-2 form (like "fre"
@@ -68,7 +68,9 @@ CLI Arguments
                             dash and a country code for specialities in languages
                             (like "fre-ca" for Canadian French). Country codes are
                             the same as used for internet domains.
-      -s subs-lang, --subs-language subs-lang
+    -s subs-lang, --subs-language subs-lang
                             If specified, defines subtitle languages to retain.
                             See description of --language for syntax.
-
+    -n, --no-subtitles    If no subtitles match the languages to retain, strip
+                            all subtitles.
+    -v, --verbose         Verbose output.
